@@ -1,25 +1,19 @@
-import SectionHeading from '../components/SectionHeading';
-import ProgramCard from '../components/ProgramCard';
-import { activities } from '../data/dummyData';
-import { useState } from 'react';
+import SectionHeading from "../components/SectionHeading";
+import ProgramCard from "../components/ProgramCard";
+import { activities } from "../data/dummyData";
+import { useState } from "react";
 
 const Activities = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const categories = ['all', 'spiritual', 'social', 'charitable'];
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const categories = ["all", "spiritual", "social", "charitable"];
 
-  const filteredActivities = selectedCategory === 'all'
-    ? activities
-    : activities.filter(a => a.category === selectedCategory);
+  const filteredActivities =
+    selectedCategory === "all"
+      ? activities
+      : activities.filter((a) => a.category === selectedCategory);
 
   return (
     <>
-      <section className="py-16 px-4 bg-amber-50">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-amber-900 mb-4">Ashram Activities</h1>
-          <p className="text-xl text-gray-700">Various programs and initiatives for spiritual growth and social welfare</p>
-        </div>
-      </section>
-
       <section className="py-16 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <SectionHeading
@@ -36,11 +30,11 @@ const Activities = () => {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-6 py-2 rounded-lg transition-colors capitalize ${
                   selectedCategory === cat
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                    ? "bg-amber-600 text-white"
+                    : "bg-amber-100 text-amber-800 hover:bg-amber-200"
                 }`}
               >
-                {cat === 'all' ? 'All Activities' : cat}
+                {cat === "all" ? "All Activities" : cat}
               </button>
             ))}
           </div>
@@ -61,7 +55,8 @@ const Activities = () => {
             Want to Participate?
           </h2>
           <p className="text-lg text-gray-700 mb-6">
-            Join us in our various activities and programs. Your participation makes a difference!
+            Join us in our various activities and programs. Your participation
+            makes a difference!
           </p>
           <a
             href="/contact"
@@ -76,4 +71,3 @@ const Activities = () => {
 };
 
 export default Activities;
-

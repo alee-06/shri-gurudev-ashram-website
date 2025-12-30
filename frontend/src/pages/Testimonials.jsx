@@ -1,17 +1,10 @@
-import SectionHeading from '../components/SectionHeading';
-import TestimonialCard from '../components/TestimonialCard';
-import { testimonials } from '../data/dummyData';
+import SectionHeading from "../components/SectionHeading";
+import TestimonialCard from "../components/TestimonialCard";
+import { testimonials } from "../data/dummyData";
 
 const Testimonials = () => {
   return (
     <>
-      <section className="py-16 px-4 bg-amber-50">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-amber-900 mb-4">Testimonials & Blessings</h1>
-          <p className="text-xl text-gray-700">Hear from our devotees and community members</p>
-        </div>
-      </section>
-
       <section className="py-16 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <SectionHeading
@@ -34,7 +27,8 @@ const Testimonials = () => {
             Share Your Experience
           </h2>
           <p className="text-lg text-gray-700 mb-6">
-            We would love to hear about your journey with us. Your story can inspire others!
+            We would love to hear about your journey with us. Your story can
+            inspire others!
           </p>
           <a
             href="/contact"
@@ -49,4 +43,3 @@ const Testimonials = () => {
 };
 
 export default Testimonials;
-

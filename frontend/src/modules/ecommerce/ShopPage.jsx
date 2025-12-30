@@ -1,24 +1,18 @@
-import { useState } from 'react';
-import SectionHeading from '../../components/SectionHeading';
-import ProductCard from '../../components/ProductCard';
-import { products, productCategories } from '../../data/dummyData';
+import { useState } from "react";
+import SectionHeading from "../../components/SectionHeading";
+import ProductCard from "../../components/ProductCard";
+import { products, productCategories } from "../../data/dummyData";
 
 const ShopPage = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
-  const filteredProducts = selectedCategory === 'all'
-    ? products
-    : products.filter(p => p.category === selectedCategory);
+  const filteredProducts =
+    selectedCategory === "all"
+      ? products
+      : products.filter((p) => p.category === selectedCategory);
 
   return (
     <>
-      <section className="py-16 px-4 bg-amber-50">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-amber-900 mb-4">Our Shop</h1>
-          <p className="text-xl text-gray-700">Spiritual books, accessories, and puja items</p>
-        </div>
-      </section>
-
       <section className="py-16 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <SectionHeading
@@ -35,8 +29,8 @@ const ShopPage = () => {
                 onClick={() => setSelectedCategory(category.id)}
                 className={`px-6 py-2 rounded-lg transition-colors ${
                   selectedCategory === category.id
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                    ? "bg-amber-600 text-white"
+                    : "bg-amber-100 text-amber-800 hover:bg-amber-200"
                 }`}
               >
                 {category.name}
@@ -53,7 +47,9 @@ const ShopPage = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-600 text-lg">No products found in this category.</p>
+              <p className="text-gray-600 text-lg">
+                No products found in this category.
+              </p>
             </div>
           )}
         </div>
@@ -63,4 +59,3 @@ const ShopPage = () => {
 };
 
 export default ShopPage;
-
