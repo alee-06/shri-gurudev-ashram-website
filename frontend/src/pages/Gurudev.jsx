@@ -30,6 +30,8 @@ const Gurudev = () => {
         </div>
       </section>
 
+      
+
       <section className="py-16 px-4 bg-amber-50">
         <div className="max-w-5xl mx-auto">
           <SectionHeading title="Teachings & Daily Sadhana" center={true} />
@@ -94,7 +96,34 @@ const Gurudev = () => {
             </div>
           </div>
         </div>
+        
       </section>
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <SectionHeading title="Milestones" center={true} />
+          <div className="mt-8">
+            <ul className="relative border-l-2 border-amber-200">
+              {[
+                { year: "2010", event: "Foundation of Gurudev Ashram" },
+                { year: "2012", event: "Launch of Annadan Seva Program" },
+                { year: "2015", event: "Establishment of Educational Wing" },
+                { year: "2017", event: "Inauguration of Medical Camp Services" },
+                { year: "2020", event: "Expansion of Social Welfare Programs" },
+                { year: "2024", event: "Reaching 10,000+ families through various initiatives" }
+              ].map((m, idx) => (
+                <li key={idx} className="mb-10 ml-6 relative">
+                  <span className="absolute -left-3 flex items-center justify-center w-6 h-6 bg-amber-600 rounded-full ring-8 ring-white"></span>
+                  <div className="p-4 bg-amber-50 rounded-lg">
+                    <div className="text-amber-600 font-bold">{m.year}</div>
+                    <div className="text-gray-700">{m.event}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
     </>
   );
 };

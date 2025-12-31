@@ -6,13 +6,6 @@ import { donationHeads, recentDonors } from '../../data/dummyData';
 const DonationPage = () => {
   return (
     <>
-      <section className="py-16 px-4 bg-amber-50">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-amber-900 mb-4">Support Our Cause</h1>
-          <p className="text-xl text-gray-700">Your generous contribution helps us serve more people and spread love and compassion</p>
-        </div>
-      </section>
-
       <section className="py-16 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <SectionHeading
