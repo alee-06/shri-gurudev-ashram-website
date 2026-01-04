@@ -22,8 +22,9 @@ const Home = () => {
   return (
     <>
       <HeroSection
-        title="Shri Gurudev Ashram, Palaskhed Sapkal"
+        title="Shri Gurudev Ashram Palaskhed Sapkal"
         subtitle="Param Pujya Shri Swami Harichaitanyanand Saraswatiji Maharaj's seva kshetra for bhakti, gyan and nishkam seva"
+        image="/assets/Home_Page.JPG"
         showCTA={true}
       />
 
