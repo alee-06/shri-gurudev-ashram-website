@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Razorpay Test</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  </head>
+  <body>
+    <button id="pay">Pay ₹500</button>
+
+    <script>
+      document.getElementById("pay").onclick = function () {
+        var options = {
+          key: "enter_key_here",
+          amount: 500 * 100,
+          currency: "INR",
+          order_id: "enter_order_id_here",
+          name: "Gurudev Ashram",
+          description: "Donation",
+          handler: function (response) {
+            alert(
+              "Payment successful. Payment ID: " + response.razorpay_payment_id
+            );
+          },
+        };
+
+        var rzp = new Razorpay(options);
+        rzp.open();
+      };
+    </script>
+  </body>
+</html>
