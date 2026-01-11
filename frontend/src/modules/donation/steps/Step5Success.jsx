@@ -1,8 +1,20 @@
 import { Link } from 'react-router-dom';
 import PrimaryButton from '../../../components/PrimaryButton';
 import { formatCurrency } from '../../../utils/helpers';
+import { useDonations } from '../../../context/DonationsContext';
+import { useEffect, useRef } from 'react';
 
 const Step5Success = ({ data, resetFlow }) => {
+  const { addDonation } = useDonations();
+  const hasSavedRef = useRef(false);
+
+  // Save donation when component mounts (only once)
+  useEffect(() => {
+    if (!hasSavedRef.current && data.transactionId && data.amount > 0) {
+      addDonation(data);
+      hasSavedRef.current = true;
+    }
+  }, [data.transactionId, data.amount, addDonation]);
   const handleDownloadReceipt = () => {
     // Mock receipt download - in production, this would generate and download a PDF
     const receiptData = {

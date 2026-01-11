@@ -1,16 +1,18 @@
 import { useState } from "react";
 import SectionHeading from "../components/SectionHeading";
 import EventCard from "../components/EventCard";
-import { events } from "../data/dummyData";
+import { useEvents } from "../context/EventsContext";
 
 const Events = () => {
+  const { getVisibleEvents } = useEvents();
+  const allEvents = getVisibleEvents();
   const [filter, setFilter] = useState("all");
-  const upcomingEvents = events.filter((e) => e.status === "upcoming");
-  const pastEvents = events.filter((e) => e.status === "past");
+  const upcomingEvents = allEvents.filter((e) => e.status === "upcoming");
+  const pastEvents = allEvents.filter((e) => e.status === "past");
 
   const displayEvents =
     filter === "all"
-      ? events
+      ? allEvents
       : filter === "upcoming"
       ? upcomingEvents
       : pastEvents;

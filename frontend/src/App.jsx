@@ -1,5 +1,10 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
+import { GalleryProvider } from "./context/GalleryContext";
+import { EventsProvider } from "./context/EventsContext";
+import { ActivitiesProvider } from "./context/ActivitiesContext";
+import { AnnouncementProvider } from "./context/AnnouncementContext";
+import { DonationsProvider } from "./context/DonationsContext";
 import MainLayout from "./layouts/MainLayout";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -15,6 +20,24 @@ import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ActivityDetail from "./pages/ActivityDetail";
+import AdminLogin from "./pages/admin/AdminLogin";
+
+// Admin Pages
+import AdminLayout from "./layouts/AdminLayout";
+import AdminHome from "./pages/admin/AdminHome";
+import WebsiteAdmin from "./pages/admin/WebsiteAdmin";
+import WebsiteAdminLayout from "./layouts/WebsiteAdminLayout";
+import GalleryManager from "./pages/admin/GalleryManager";
+import EventsManager from "./pages/admin/EventsManager";
+import ActivitiesManager from "./pages/admin/ActivitiesManager";
+import AnnouncementBannerManager from "./pages/admin/AnnouncementBannerManager";
+import SystemAdmin from "./pages/admin/SystemAdmin";
+import SystemAdminLayout from "./layouts/SystemAdminLayout";
+import SystemOverview from "./pages/admin/SystemOverview";
+import DonationsView from "./pages/admin/DonationsView";
+import DonorsView from "./pages/admin/DonorsView";
+import ReportsView from "./pages/admin/ReportsView";
+import ExportsView from "./pages/admin/ExportsView";
 
 // Donation Module
 import DonationPage from "./modules/donation/DonationPage";
@@ -32,7 +55,12 @@ function App() {
     <BrowserRouter>
       <ScrollToTop />
       <CartProvider>
-        <Routes>
+        <GalleryProvider>
+          <EventsProvider>
+            <ActivitiesProvider>
+              <AnnouncementProvider>
+                <DonationsProvider>
+                  <Routes>
           <Route path="/" element={<MainLayout />}>
             {/* Main Pages */}
             <Route index element={<Home />} />
@@ -45,6 +73,7 @@ function App() {
             <Route path="testimonials" element={<Testimonials />} />
             <Route path="contact" element={<Contact />} />
             <Route path="login" element={<Login />} />
+            <Route path="login/admin" element={<AdminLogin />} />
             <Route path="signup" element={<Signup />} />
 
             {/* Donation Module */}
@@ -65,7 +94,32 @@ function App() {
             />
             <Route path="track-order" element={<OrderTrackingPage />} />
           </Route>
+
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminHome />} />
+            <Route path="website" element={<WebsiteAdminLayout />}>
+              <Route index element={<GalleryManager />} />
+              <Route path="gallery" element={<GalleryManager />} />
+              <Route path="events" element={<EventsManager />} />
+              <Route path="activities" element={<ActivitiesManager />} />
+              <Route path="announcement" element={<AnnouncementBannerManager />} />
+            </Route>
+            <Route path="system" element={<SystemAdminLayout />}>
+              <Route index element={<SystemOverview />} />
+              <Route path="overview" element={<SystemOverview />} />
+              <Route path="donations" element={<DonationsView />} />
+              <Route path="donors" element={<DonorsView />} />
+              <Route path="reports" element={<ReportsView />} />
+              <Route path="exports" element={<ExportsView />} />
+            </Route>
+          </Route>
         </Routes>
+                </DonationsProvider>
+              </AnnouncementProvider>
+            </ActivitiesProvider>
+          </EventsProvider>
+        </GalleryProvider>
       </CartProvider>
     </BrowserRouter>
   );

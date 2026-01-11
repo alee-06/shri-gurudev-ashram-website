@@ -1,16 +1,19 @@
 import SectionHeading from "../components/SectionHeading";
 import ProgramCard from "../components/ProgramCard";
-import { activities } from "../data/dummyData";
+import { useActivities } from "../context/ActivitiesContext";
 import { useState } from "react";
 
 const Activities = () => {
+  const { getVisibleActivities, getCategories } = useActivities();
+  const allActivities = getVisibleActivities();
+  const availableCategories = getCategories();
+  const categories = ["all", ...availableCategories];
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const categories = ["all", "spiritual", "social", "charitable"];
 
   const filteredActivities =
     selectedCategory === "all"
-      ? activities
-      : activities.filter((a) => a.category === selectedCategory);
+      ? allActivities
+      : allActivities.filter((a) => a.category === selectedCategory);
 
   return (
     <>

@@ -3,7 +3,7 @@ import AnnouncementBanner from "./AnnouncementBanner";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
-const Navbar = ({ showAnnouncement = false, announcements = [] }) => {
+const Navbar = ({ showAnnouncement = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -383,7 +383,7 @@ const Navbar = ({ showAnnouncement = false, announcements = [] }) => {
           </div>
         </div>
       )}
-      {showAnnouncement && <AnnouncementBanner announcements={announcements} />}
+      {showAnnouncement && <AnnouncementBanner />}
     </nav>
   );
 };

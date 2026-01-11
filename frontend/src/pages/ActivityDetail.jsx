@@ -1,11 +1,13 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import SectionHeading from "../components/SectionHeading";
-import { activities } from "../data/dummyData";
+import { useActivities } from "../context/ActivitiesContext";
 
 const ActivityDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const activity = activities.find((a) => String(a.id) === String(id));
+  const { getVisibleActivities } = useActivities();
+  const allActivities = getVisibleActivities();
+  const activity = allActivities.find((a) => String(a.id) === String(id));
   
 
   if (!activity) {
@@ -27,7 +29,7 @@ const ActivityDetail = () => {
       <section className="py-12 px-4 bg-white">
         <div className="max-w-5xl mx-auto">
           <div className="mb-8">
-            <SectionHeading title={activity.title} subtitle={activity.description} center={true} />
+            <SectionHeading title={activity.title} subtitle={activity.description || activity.shortDescription} center={true} />
           </div>
 
           {/* no hero image per request (no photos) */}

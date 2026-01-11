@@ -1,9 +1,11 @@
 import SectionHeading from "../../components/SectionHeading";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <section className="py-16 px-4 bg-white">
@@ -54,6 +56,7 @@ const AdminLogin = () => {
 
           <button
             type="button"
+            onClick={() => navigate("/admin")}
             className="w-full py-3 bg-amber-600 text-white font-semibold rounded-md hover:bg-amber-700 transition-colors"
           >
             Login as Admin

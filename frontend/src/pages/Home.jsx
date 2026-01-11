@@ -5,17 +5,17 @@ import ProgramCard from "../components/ProgramCard";
 import EventCard from "../components/EventCard";
 import DonationCard from "../components/DonationCard";
 import CTABanner from "../components/CTABanner";
-import AnnouncementBanner from "../components/AnnouncementBanner";
 import {
-  activities,
-  events,
   donationHeads,
-  announcements,
 } from "../data/dummyData";
+import { useEvents } from "../context/EventsContext";
+import { useActivities } from "../context/ActivitiesContext";
 
 const Home = () => {
-  const featuredActivities = activities.slice(0, 6);
-  const upcomingEvents = events
+  const { getVisibleEvents } = useEvents();
+  const { getVisibleActivities } = useActivities();
+  const featuredActivities = getVisibleActivities().slice(0, 6);
+  const upcomingEvents = getVisibleEvents()
     .filter((e) => e.status === "upcoming")
     .slice(0, 3);
 

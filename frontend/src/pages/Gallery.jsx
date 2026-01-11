@@ -1,16 +1,11 @@
 import SectionHeading from "../components/SectionHeading";
 import GalleryGrid from "../components/GalleryGrid";
-import { galleryImages } from "../data/dummyData";
-import {
-  brochureGalleryImages,
-  brochureCategories,
-} from "../data/brochureData";
+import { useGallery } from "../context/GalleryContext";
 
 const Gallery = () => {
-  // GalleryGrid already renders a single 'All' button — pass only brochure categories
-  const categories = brochureCategories;
-  const images =
-    brochureGalleryImages.length > 0 ? brochureGalleryImages : galleryImages;
+  const { getVisibleItems, getCategories } = useGallery();
+  const images = getVisibleItems();
+  const categories = getCategories();
 
   return (
     <>
