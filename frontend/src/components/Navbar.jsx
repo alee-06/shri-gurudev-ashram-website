@@ -151,7 +151,7 @@ const Navbar = ({ showAnnouncement = false, announcements = [] }) => {
             {/* Action Buttons */}
             <div className="hidden ml-6 sm:flex items-center space-x-3">
               <Link
-                to="/donate"
+                to="/donate?quick=true"
                 className="px-4 py-2 border-2 border-amber-400 rounded-md text-amber-600 text-sm font-semibold hover:bg-amber-400 hover:text-white transition-all duration-300 flex items-center space-x-2 shadow-sm"
               >
                 <svg

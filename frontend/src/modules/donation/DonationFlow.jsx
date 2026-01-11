@@ -1,24 +1,39 @@
-import { useState } from 'react';
-import Step1MobileOTP from './steps/Step1MobileOTP';
+import { useState, useEffect } from 'react';
+import Step1AmountSelection from './steps/Step1AmountSelection';
 import Step2DonorDetails from './steps/Step2DonorDetails';
-import Step3DonationDetails from './steps/Step3DonationDetails';
+import Step3Review from './steps/Step3Review';
 import Step4Payment from './steps/Step4Payment';
 import Step5Success from './steps/Step5Success';
 
-const DonationFlow = () => {
+// Mock user data for auto-fill (if logged in)
+const mockLoggedInUser = null; // Set to null to simulate not logged in, or provide mock data
+
+const DonationFlow = ({ selectedCause, onCauseProcessed }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [donationData, setDonationData] = useState({
-    mobile: '',
-    otp: '',
-    name: '',
-    email: '',
-    address: '',
-    whatsapp: '',
+    mobile: mockLoggedInUser?.mobile || '',
+    name: mockLoggedInUser?.name || '',
+    email: mockLoggedInUser?.email || '',
+    emailOptIn: false,
+    emailVerified: false,
+    address: mockLoggedInUser?.address || '',
+    govtIdType: mockLoggedInUser?.aadhaar ? 'aadhaar' : (mockLoggedInUser?.pan ? 'pan' : ''),
+    aadhaar: mockLoggedInUser?.aadhaar || '',
+    pan: mockLoggedInUser?.pan || '',
+    dateOfBirth: mockLoggedInUser?.dateOfBirth || '',
+    anonymousDisplay: false,
     donationHead: null,
     amount: 0,
     customAmount: '',
     transactionId: null
   });
+
+  useEffect(() => {
+    if (selectedCause) {
+      setDonationData(prev => ({ ...prev, donationHead: selectedCause }));
+      setCurrentStep(1);
+    }
+  }, [selectedCause]);
 
   const updateData = (data) => {
     setDonationData(prev => ({ ...prev, ...data }));
@@ -35,12 +50,17 @@ const DonationFlow = () => {
   const resetFlow = () => {
     setCurrentStep(1);
     setDonationData({
-      mobile: '',
-      otp: '',
-      name: '',
-      email: '',
-      address: '',
-      whatsapp: '',
+      mobile: mockLoggedInUser?.mobile || '',
+      name: mockLoggedInUser?.name || '',
+      email: mockLoggedInUser?.email || '',
+      emailOptIn: false,
+      emailVerified: false,
+      address: mockLoggedInUser?.address || '',
+      govtIdType: mockLoggedInUser?.aadhaar ? 'aadhaar' : (mockLoggedInUser?.pan ? 'pan' : ''),
+      aadhaar: mockLoggedInUser?.aadhaar || '',
+      pan: mockLoggedInUser?.pan || '',
+      dateOfBirth: mockLoggedInUser?.dateOfBirth || '',
+      anonymousDisplay: false,
       donationHead: null,
       amount: 0,
       customAmount: '',
@@ -49,9 +69,9 @@ const DonationFlow = () => {
   };
 
   const steps = [
-    { number: 1, title: 'Mobile & OTP' },
+    { number: 1, title: 'Amount' },
     { number: 2, title: 'Donor Details' },
-    { number: 3, title: 'Donation Details' },
+    { number: 3, title: 'Review' },
     { number: 4, title: 'Payment' },
     { number: 5, title: 'Success' }
   ];
@@ -94,7 +114,7 @@ const DonationFlow = () => {
       {/* Step Content */}
       <div>
         {currentStep === 1 && (
-          <Step1MobileOTP
+          <Step1AmountSelection
             data={donationData}
             updateData={updateData}
             nextStep={nextStep}
@@ -109,7 +129,7 @@ const DonationFlow = () => {
           />
         )}
         {currentStep === 3 && (
-          <Step3DonationDetails
+          <Step3Review
             data={donationData}
             updateData={updateData}
             nextStep={nextStep}

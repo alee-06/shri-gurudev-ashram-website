@@ -244,11 +244,52 @@ export const testimonials = [
 ];
 
 export const donationHeads = [
-  { id: 1, name: "Annadan Seva", description: "Feed the needy", icon: "" },
-  { id: 2, name: "Education", description: "Support children's education", icon: "" },
-  { id: 3, name: "Medical Aid", description: "Healthcare for the underprivileged", icon: "" },
-  { id: 4, name: "Ashram Development", description: "Infrastructure and maintenance", icon: "" },
-  { id: 5, name: "General Seva", description: "General welfare activities", icon: "" }
+  { 
+    id: 1, 
+    name: "Annadan Seva", 
+    description: "Feed the needy", 
+    image: "/assets/Brochure/Annadan/1.JPG",
+    subCauses: [
+      { id: "annadan-nithya", name: "Nithya Annadhan Seva" },
+      { id: "annadan-aajeevan", name: "Aajeevan Svasat Daan" }
+    ]
+  },
+  { 
+    id: 2, 
+    name: "Education", 
+    description: "Support children's education", 
+    image: "/assets/Brochure/Shri Gurudev Vidhyalay/1.jpg"
+  },
+  { 
+    id: 3, 
+    name: "Medical Seva", 
+    description: "Healthcare for the underprivileged", 
+    image: "/assets/Brochure/Adivasi/Medical Camp.jpg"
+  },
+  { 
+    id: 4, 
+    name: "Ashram Development", 
+    description: "Infrastructure and maintenance", 
+    image: "/assets/Brochure/Seva Tirth/1.JPG"
+  },
+  { 
+    id: 5, 
+    name: "Goushala Seva", 
+    description: "Care for cows and cattle", 
+    image: "/assets/Brochure/Goushala/1.jpeg"
+  },
+  { 
+    id: 6, 
+    name: "Anath Seva", 
+    description: "Support for orphans", 
+    image: "/assets/Brochure/Anath/1.JPG"
+  },
+  { 
+    id: 7, 
+    name: "General Seva", 
+    description: "General welfare activities", 
+    image: "/assets/Brochure/Seva Tirth/01.jpg"
+  }
 ];
 
 export const presetAmounts = [100, 500, 1000, 2500, 5000, 10000];

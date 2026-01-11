@@ -13,6 +13,7 @@ import Gallery from "./pages/Gallery";
 import Testimonials from "./pages/Testimonials";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import ActivityDetail from "./pages/ActivityDetail";
 
 // Donation Module
@@ -44,6 +45,7 @@ function App() {
             <Route path="testimonials" element={<Testimonials />} />
             <Route path="contact" element={<Contact />} />
             <Route path="login" element={<Login />} />
+            <Route path="signup" element={<Signup />} />
 
             {/* Donation Module */}
             <Route path="donate" element={<DonationPage />} />

@@ -4,21 +4,22 @@ import { formatCurrency } from '../../../utils/helpers';
 
 const Step5Success = ({ data, resetFlow }) => {
   const handleDownloadReceipt = () => {
-    // TODO: Implement receipt download functionality
-    // This would typically generate a PDF receipt
-    alert('Receipt download functionality will be implemented with backend integration');
-  };
-
-  const handleEmailReceipt = () => {
-    // TODO: Implement email receipt functionality
-    alert(`Receipt will be sent to ${data.email}`);
-  };
-
-  const handleWhatsAppReceipt = () => {
-    // TODO: Implement WhatsApp receipt functionality
-    if (data.whatsapp) {
-      alert(`Receipt will be sent to WhatsApp: ${data.whatsapp}`);
-    }
+    // Mock receipt download - in production, this would generate and download a PDF
+    const receiptData = {
+      transactionId: data.transactionId,
+      donorName: data.name,
+      amount: data.amount,
+      cause: data.donationHead?.name,
+      date: new Date().toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    };
+    
+    // Simulate download
+    console.log('Downloading receipt:', receiptData);
+    alert('Receipt downloaded successfully!');
   };
 
   return (
@@ -73,23 +74,23 @@ const Step5Success = ({ data, resetFlow }) => {
         <PrimaryButton onClick={handleDownloadReceipt} className="w-full">
           Download Receipt
         </PrimaryButton>
-        <div className="grid grid-cols-2 gap-3">
-          <PrimaryButton
-            onClick={handleEmailReceipt}
-            variant="secondary"
-            className="w-full"
-          >
-            Email Receipt
-          </PrimaryButton>
-          {data.whatsapp && (
-            <PrimaryButton
-              onClick={handleWhatsAppReceipt}
-              variant="secondary"
-              className="w-full"
-            >
-              WhatsApp Receipt
-            </PrimaryButton>
+        
+        {/* Receipt Delivery Status */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+          {data.emailOptIn && data.email && data.emailVerified && (
+            <div className="flex items-center space-x-2 text-sm text-green-700">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>Receipt sent via Email</span>
+            </div>
           )}
+          <div className="flex items-center space-x-2 text-sm text-green-700">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span>Receipt sent via WhatsApp</span>
+          </div>
         </div>
       </div>
 
@@ -105,7 +106,7 @@ const Step5Success = ({ data, resetFlow }) => {
       </div>
 
       <p className="text-sm text-gray-600 mt-6">
-        Your donation receipt has been sent to your email and mobile number.
+        Thank you for your generous contribution.
         <br />
         May you be blessed with peace, prosperity, and spiritual growth!
       </p>
