@@ -320,25 +320,33 @@ const MyDonations = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-semibold text-amber-900">
-                          {donation.donationHead}
+                          {donation.donationHead?.name || donation.donationHead}
                         </h3>
                         <StatusBadge status={donation.status} />
                       </div>
                       <p className="text-2xl font-bold text-amber-700">
                         {formatCurrency(donation.amount)}
                       </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {new Date(donation.createdAt).toLocaleDateString(
-                          "en-IN",
-                          {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mt-1">
+                        <span>
+                          {new Date(donation.createdAt).toLocaleDateString(
+                            "en-IN",
+                            {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}
+                        </span>
+                        {donation.receiptNumber && (
+                          <>
+                            <span>•</span>
+                            <span className="font-mono text-xs">{donation.receiptNumber}</span>
+                          </>
                         )}
-                      </p>
+                      </div>
                     </div>
                     <div className="flex-shrink-0">
                       {donation.status === "SUCCESS" && donation.receiptUrl && (

@@ -19,7 +19,7 @@ const DonationFlow = ({ selectedCause, onCauseProcessed }) => {
 
   // Core donation state - aligned with backend API requirements
   const [donationData, setDonationData] = useState({
-    // Donor identification (for auth - PAUSED for now)
+    // Donor identification
     mobile: "",
 
     // Donor personal details
@@ -38,6 +38,9 @@ const DonationFlow = ({ selectedCause, onCauseProcessed }) => {
     // Display preferences
     anonymousDisplay: false,
 
+    // OTP verification status
+    otpVerified: false,
+
     // Donation specifics
     donationHead: null, // { id, name, description, image } from selected cause
     amount: 0,
@@ -49,6 +52,9 @@ const DonationFlow = ({ selectedCause, onCauseProcessed }) => {
     razorpayOrderAmount: null, // Stored for retry - amount in paise from backend
     razorpayKey: null, // Stored for retry
     razorpayPaymentId: null, // From Razorpay checkout callback
+
+    // Receipt info
+    receiptNumber: null,
 
     // Legacy field for backward compatibility with Step5Success
     transactionId: null,
@@ -102,6 +108,7 @@ const DonationFlow = ({ selectedCause, onCauseProcessed }) => {
       pan: "",
       dateOfBirth: "",
       anonymousDisplay: false,
+      otpVerified: false,
       donationHead: null,
       amount: 0,
       customAmount: "",
@@ -110,6 +117,7 @@ const DonationFlow = ({ selectedCause, onCauseProcessed }) => {
       razorpayOrderAmount: null,
       razorpayKey: null,
       razorpayPaymentId: null,
+      receiptNumber: null,
       transactionId: null,
     });
   }, []);

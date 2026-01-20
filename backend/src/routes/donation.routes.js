@@ -7,7 +7,13 @@ const {
   verifyPayment,
   getDonationStatus,
   downloadReceipt,
+  sendDonationOtp,
+  verifyDonationOtp,
 } = require("../controllers/donation.controller");
+
+// OTP endpoints for donation verification (no auth required)
+router.post("/send-otp", sendDonationOtp);
+router.post("/verify-otp", verifyDonationOtp);
 
 // Donation creation - uses optional auth (works for both guests and logged-in users)
 // If user is logged in, donation will be linked to their account

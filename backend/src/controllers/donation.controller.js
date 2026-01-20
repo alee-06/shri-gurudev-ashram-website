@@ -5,58 +5,187 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const User = require("../models/User");
+const Otp = require("../models/Otp");
+const bcrypt = require("bcrypt");
 const { generateDonationReceipt } = require("../services/receipt.service");
 const { sendDonationReceiptEmail } = require("../services/email.service");
 
+/**
+ * Helper: Validate government ID
+ */
+const validateGovtId = (idType, idNumber) => {
+  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+  const aadhaarRegex = /^[0-9]{12}$/;
+
+  if (!["PAN", "AADHAAR"].includes(idType)) {
+    return { valid: false, message: "Invalid ID type" };
+  }
+
+  if (idType === "PAN" && !panRegex.test(idNumber)) {
+    return { valid: false, message: "Invalid PAN number format" };
+  }
+
+  if (idType === "AADHAAR" && !aadhaarRegex.test(idNumber)) {
+    return { valid: false, message: "Invalid Aadhaar number format" };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Helper: Validate age (must be 18+)
+ */
+const validateAge = (dob) => {
+  const birthDate = new Date(dob);
+  if (isNaN(birthDate.getTime())) {
+    return { valid: false, message: "Invalid date of birth" };
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+
+  if (age < 18) {
+    return { valid: false, message: "Donor must be 18 years or older" };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Send OTP for donation verification
+ * POST /donations/send-otp
+ */
+exports.sendDonationOtp = async (req, res) => {
+  try {
+    const { mobile } = req.body;
+
+    if (!mobile) {
+      return res.status(400).json({ message: "Mobile number is required" });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const otpHash = await bcrypt.hash(otp.toString(), 10);
+
+    // Store OTP with 5 min expiry
+    await Otp.create({
+      mobile,
+      otpHash,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+
+    // Console log for development (replace with SMS/WhatsApp later)
+    console.log(`[DONATION OTP] Mobile: ${mobile}, OTP: ${otp}`);
+
+    res.json({ message: "OTP sent successfully" });
+  } catch (error) {
+    console.error("Send OTP error:", error);
+    res.status(500).json({ message: "Failed to send OTP" });
+  }
+};
+
+/**
+ * Verify OTP for donation
+ * POST /donations/verify-otp
+ */
+exports.verifyDonationOtp = async (req, res) => {
+  try {
+    const { mobile, otp } = req.body;
+
+    if (!mobile || !otp) {
+      return res.status(400).json({ message: "Mobile and OTP are required" });
+    }
+
+    const record = await Otp.findOne({ mobile }).sort({ _id: -1 });
+
+    if (!record) {
+      return res.status(400).json({ message: "OTP not found. Please request a new one." });
+    }
+
+    if (record.expiresAt < new Date()) {
+      await Otp.deleteMany({ mobile });
+      return res.status(400).json({ message: "OTP expired. Please request a new one." });
+    }
+
+    const isValid = await bcrypt.compare(otp.toString(), record.otpHash);
+
+    if (!isValid) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    // Delete used OTP
+    await Otp.deleteMany({ mobile });
+
+    res.json({ 
+      verified: true, 
+      message: "OTP verified successfully" 
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
+    res.status(500).json({ message: "OTP verification failed" });
+  }
+};
+
+/**
+ * Create donation record
+ * POST /donations/create
+ * Accepts full donor object and stores snapshot
+ */
 exports.createDonation = async (req, res) => {
   try {
-    const { donationHead, amount, donorIdType, donorIdNumber, donorDob } =
-      req.body;
+    const { donor, donationHead, amount, otpVerified } = req.body;
 
-    if (!donationHead || !amount || amount <= 0) {
+    // Validate required fields
+    if (!donor || !donationHead || !amount || amount <= 0) {
       return res.status(400).json({ message: "Invalid donation data" });
     }
 
-    if (!donorDob || !donorIdNumber) {
-      return res.status(400).json({ message: "Missing donor details" });
+    // Validate donor object
+    const { name, mobile, email, emailOptIn, address, anonymousDisplay, dob, idType, idNumber } = donor;
+
+    if (!name || !mobile || !address || !dob || !idType || !idNumber) {
+      return res.status(400).json({ message: "Missing required donor details" });
     }
 
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-    const aadhaarRegex = /^[0-9]{12}$/;
-
-    if (!["PAN", "AADHAAR"].includes(donorIdType)) {
-      return res.status(400).json({ message: "Invalid ID type" });
+    // Validate donationHead object
+    if (!donationHead.id || !donationHead.name) {
+      return res.status(400).json({ message: "Invalid donation head format" });
     }
 
-    if (donorIdType === "PAN" && !panRegex.test(donorIdNumber)) {
-      return res.status(400).json({ message: "Invalid PAN number" });
+    // Validate government ID
+    const idValidation = validateGovtId(idType, idNumber);
+    if (!idValidation.valid) {
+      return res.status(400).json({ message: idValidation.message });
     }
 
-    if (donorIdType === "AADHAAR" && !aadhaarRegex.test(donorIdNumber)) {
-      return res.status(400).json({ message: "Invalid Aadhaar number" });
+    // Validate age
+    const ageValidation = validateAge(dob);
+    if (!ageValidation.valid) {
+      return res.status(400).json({ message: ageValidation.message });
     }
 
-    const dob = new Date(donorDob);
-    if (isNaN(dob.getTime())) {
-      return res.status(400).json({ message: "Invalid date of birth" });
-    }
-
-    const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const m = today.getMonth() - dob.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
-
-    if (age < 18) {
-      return res.status(400).json({ message: "Donor must be 18+" });
-    }
-
+    // Create donation with donor snapshot
     const donation = await Donation.create({
-      user: req.user?.id || null, // ← THIS FIX
+      user: req.user?.id || null,
+      donor: {
+        name,
+        mobile,
+        email: email || undefined,
+        emailOptIn: emailOptIn || false,
+        address,
+        anonymousDisplay: anonymousDisplay || false,
+        dob: new Date(dob),
+        idType,
+        idNumber,
+      },
+      donationHead: {
+        id: donationHead.id,
+        name: donationHead.name,
+      },
       amount,
-      donationHead,
-      donorDob,
-      donorIdType,
-      donorIdNumber,
+      otpVerified: otpVerified || false,
       status: "PENDING",
     });
 
@@ -66,7 +195,7 @@ exports.createDonation = async (req, res) => {
       status: donation.status,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Create donation error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -98,7 +227,7 @@ exports.createDonationOrder = async (req, res) => {
 
     res.json({
       razorpayOrderId: order.id,
-      amount: donation.amount,
+      amount: options.amount, // Return amount in paise for Razorpay
       currency: "INR",
       key: process.env.RAZORPAY_KEY_ID,
     });
@@ -159,19 +288,16 @@ exports.verifyPayment = async (req, res) => {
 
     await donation.save();
 
-    // Generate receipt
-    const user = donation.user ? await User.findById(donation.user) : null;
-    
+    // Generate receipt using donor snapshot (not user)
     try {
-      const receiptPath = await generateDonationReceipt(donation, user);
+      const receiptPath = await generateDonationReceipt(donation);
       donation.receiptUrl = receiptPath;
       await donation.save();
 
-      // Send email if user has email
-      const recipientEmail = user?.email;
-      if (recipientEmail) {
+      // Send email if donor has email
+      if (donation.donor.email) {
         try {
-          await sendDonationReceiptEmail(recipientEmail, receiptPath);
+          await sendDonationReceiptEmail(donation.donor.email, receiptPath);
         } catch (emailErr) {
           console.error("Receipt email failed:", emailErr.message);
         }
@@ -193,13 +319,29 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
+/**
+ * Get user's donations (JWT protected)
+ * GET /user/donations
+ */
 exports.getUserDonations = async (req, res) => {
   try {
     const donations = await Donation.find({ user: req.user.id })
-      .select("_id donationHead amount status createdAt receiptUrl")
+      .select("_id donationHead donor.name donor.anonymousDisplay amount status createdAt receiptUrl receiptNumber")
       .sort({ createdAt: -1 });
 
-    res.json(donations);
+    // Format response with display name handling
+    const formattedDonations = donations.map(d => ({
+      _id: d._id,
+      donationHead: d.donationHead,
+      donorName: d.donor.anonymousDisplay ? "Anonymous" : d.donor.name,
+      amount: d.amount,
+      status: d.status,
+      createdAt: d.createdAt,
+      receiptUrl: d.receiptUrl,
+      receiptNumber: d.receiptNumber,
+    }));
+
+    res.json(formattedDonations);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch donations" });
@@ -221,13 +363,18 @@ exports.getDonationStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid donation ID" });
     }
 
-    const donation = await Donation.findById(id).select("status");
+    const donation = await Donation.findById(id).select("status donationHead amount receiptNumber");
 
     if (!donation) {
       return res.status(404).json({ status: "NOT_FOUND" });
     }
 
-    res.json({ status: donation.status });
+    res.json({ 
+      status: donation.status,
+      donationHead: donation.donationHead,
+      amount: donation.amount,
+      receiptNumber: donation.receiptNumber,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch donation status" });

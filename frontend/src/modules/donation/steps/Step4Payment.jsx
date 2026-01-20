@@ -56,23 +56,33 @@ const Step4Payment = ({ data, updateData, nextStep, prevStep }) => {
 
   /**
    * Step 1: Create donation record in backend
+   * Sends full donor snapshot and donationHead object
    */
   const createDonation = async () => {
-    // Map local field names to API expected format
-    const donorIdType = data.govtIdType === "aadhaar" ? "AADHAAR" : "PAN";
-    const donorIdNumber =
-      data.govtIdType === "aadhaar" ? data.aadhaar : data.pan;
+    // Build donor object with all details from Step2
+    const donor = {
+      name: data.name,
+      mobile: data.mobile,
+      email: data.email || undefined,
+      emailOptIn: data.emailOptIn || false,
+      address: data.address,
+      anonymousDisplay: data.anonymousDisplay || false,
+      dob: data.dateOfBirth, // YYYY-MM-DD format
+      idType: data.govtIdType === "aadhaar" ? "AADHAAR" : "PAN",
+      idNumber: data.govtIdType === "aadhaar" ? data.aadhaar : data.pan,
+    };
 
-    // Use id if available for consistent backend mapping, otherwise fallback to name
-    const donationHeadValue =
-      data.donationHead?.id || data.donationHead?.name || data.donationHead;
+    // Build donationHead object (not just ID)
+    const donationHead = {
+      id: data.donationHead?.id || data.donationHead?.name || String(data.donationHead),
+      name: data.donationHead?.name || String(data.donationHead),
+    };
 
     const payload = {
-      donationHead: donationHeadValue,
+      donor,
+      donationHead,
       amount: data.amount,
-      donorDob: data.dateOfBirth, // YYYY-MM-DD format
-      donorIdType,
-      donorIdNumber,
+      otpVerified: data.otpVerified || false,
     };
 
     const result = await apiRequest("/donations/create", payload);

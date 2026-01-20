@@ -3,10 +3,19 @@ import FormInput from '../../../components/FormInput';
 import PrimaryButton from '../../../components/PrimaryButton';
 import { validateEmail, validatePhone } from '../../../utils/helpers';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const Step2DonorDetails = ({ data, updateData, nextStep, prevStep }) => {
   const [errors, setErrors] = useState({});
   const [showEmailInput, setShowEmailInput] = useState(data.emailOptIn);
   const [editingGovtId, setEditingGovtId] = useState(false);
+  
+  // OTP state
+  const [otpStep, setOtpStep] = useState('form'); // 'form' | 'otp'
+  const [otp, setOtp] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -26,7 +35,6 @@ const Step2DonorDetails = ({ data, updateData, nextStep, prevStep }) => {
       
       // Simulate email verification when email is entered
       if (name === 'email' && value && validateEmail(value)) {
-        // Simulate verification delay
         setTimeout(() => {
           updateData({ emailVerified: true });
         }, 1000);
@@ -45,7 +53,6 @@ const Step2DonorDetails = ({ data, updateData, nextStep, prevStep }) => {
   };
 
   const validatePAN = (pan) => {
-    // PAN format: AAAAA9999A (5 letters, 4 digits, 1 letter)
     const panPattern = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
     return panPattern.test(pan);
   };
@@ -77,7 +84,6 @@ const Step2DonorDetails = ({ data, updateData, nextStep, prevStep }) => {
     if (!value) return '';
     if (editingGovtId) return value;
     if (type === 'aadhaar' && value.length > 4) {
-      // Format: **** **** 1234
       return '**** **** ' + value.slice(-4);
     } else if (type === 'pan' && value.length > 4) {
       return '****' + value.slice(-4);
@@ -85,36 +91,39 @@ const Step2DonorDetails = ({ data, updateData, nextStep, prevStep }) => {
     return value;
   };
 
-  const handleSubmit = (e) => {
+  /**
+   * Validate form and send OTP
+   */
+  const handleSendOtp = async (e) => {
     e.preventDefault();
 
     const newErrors = {};
 
-    // Full Name (required)
+    // Full Name
     if (!data.name.trim()) {
       newErrors.name = 'Full name is required';
     }
 
-    // Mobile Number (required, 10 digits)
+    // Mobile Number
     if (!data.mobile.trim()) {
       newErrors.mobile = 'Mobile number is required';
     } else if (!validatePhone(data.mobile)) {
       newErrors.mobile = 'Please enter a valid 10-digit mobile number';
     }
 
-    // Email (optional, but validate if provided)
+    // Email (optional)
     if (showEmailInput && data.email) {
       if (!validateEmail(data.email)) {
         newErrors.email = 'Please enter a valid email address';
       }
     }
 
-    // Address (required)
+    // Address
     if (!data.address.trim()) {
       newErrors.address = 'Address is required';
     }
 
-    // Government ID (mandatory - any one)
+    // Government ID
     if (!data.govtIdType) {
       newErrors.govtId = 'Please select a government ID type';
     } else {
@@ -126,30 +135,212 @@ const Step2DonorDetails = ({ data, updateData, nextStep, prevStep }) => {
         if (!data.pan || data.pan.length !== 10) {
           newErrors.pan = 'Please enter a valid 10-character PAN number';
         } else if (!validatePAN(data.pan)) {
-          newErrors.pan = 'PAN must be in format: AAAAA9999A (5 letters, 4 digits, 1 letter)';
+          newErrors.pan = 'PAN must be in format: AAAAA9999A';
         }
       }
     }
 
-    // DOB is mandatory for all
+    // DOB
     if (!data.dateOfBirth) {
       newErrors.dateOfBirth = 'Date of Birth is required';
     }
 
     setErrors(newErrors);
 
-    if (Object.keys(newErrors).length === 0) {
-      nextStep();
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
+
+    // Send OTP
+    setIsLoading(true);
+    setOtpError('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/donations/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile: data.mobile }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to send OTP');
+      }
+
+      setOtpSent(true);
+      setOtpStep('otp');
+    } catch (err) {
+      setOtpError(err.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  /**
+   * Verify OTP and proceed
+   */
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+
+    if (otp.length !== 6) {
+      setOtpError('Please enter a valid 6-digit OTP');
+      return;
+    }
+
+    setIsLoading(true);
+    setOtpError('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/donations/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile: data.mobile, otp }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Invalid OTP');
+      }
+
+      // Mark OTP as verified and proceed
+      updateData({ otpVerified: true });
+      nextStep();
+    } catch (err) {
+      setOtpError(err.message || 'OTP verification failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Resend OTP
+   */
+  const handleResendOtp = async () => {
+    setOtp('');
+    setOtpError('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/donations/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile: data.mobile }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to resend OTP');
+      }
+
+      setOtpError('');
+    } catch (err) {
+      setOtpError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Go back to form
+   */
+  const handleBackToForm = () => {
+    setOtpStep('form');
+    setOtp('');
+    setOtpError('');
+  };
+
+  // OTP Verification Screen
+  if (otpStep === 'otp') {
+    return (
+      <div className="max-w-md mx-auto">
+        <h2 className="text-2xl font-bold text-amber-900 mb-2 text-center">
+          Verify Mobile Number
+        </h2>
+        <p className="text-gray-600 text-center mb-6">
+          Enter the OTP sent to {data.mobile}
+        </p>
+
+        {otpError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+            {otpError}
+          </div>
+        )}
+
+        {otpSent && !otpError && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+            OTP sent successfully! Check your phone.
+          </div>
+        )}
+
+        <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Enter OTP
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={otp}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                setOtp(value);
+                setOtpError('');
+              }}
+              placeholder="Enter 6-digit OTP"
+              disabled={isLoading}
+              className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 text-center text-xl tracking-widest font-mono disabled:opacity-50"
+              maxLength={6}
+              autoFocus
+            />
+          </div>
+
+          <PrimaryButton
+            type="submit"
+            disabled={isLoading || otp.length !== 6}
+            className="w-full"
+          >
+            {isLoading ? 'Verifying...' : 'Verify & Continue'}
+          </PrimaryButton>
+
+          <div className="flex justify-between items-center text-sm">
+            <button
+              type="button"
+              onClick={handleBackToForm}
+              className="text-amber-600 hover:text-amber-700"
+            >
+              ← Change Details
+            </button>
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={isLoading}
+              className="text-amber-600 hover:text-amber-700 disabled:opacity-50"
+            >
+              Resend OTP
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // Main Form
   return (
     <div className="max-w-md mx-auto">
       <h2 className="text-2xl font-bold text-amber-900 mb-6 text-center">
         Donor Details
       </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {otpError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+          {otpError}
+        </div>
+      )}
+
+      <form onSubmit={handleSendOtp} className="space-y-4">
         {/* Full Name (required) */}
         <FormInput
           label="Full Name"
@@ -391,11 +582,12 @@ const Step2DonorDetails = ({ data, updateData, nextStep, prevStep }) => {
             onClick={prevStep}
             variant="outline"
             className="flex-1"
+            disabled={isLoading}
           >
             Back
           </PrimaryButton>
-          <PrimaryButton type="submit" className="flex-1">
-            Continue
+          <PrimaryButton type="submit" className="flex-1" disabled={isLoading}>
+            {isLoading ? 'Sending OTP...' : 'Send OTP & Continue'}
           </PrimaryButton>
         </div>
       </form>

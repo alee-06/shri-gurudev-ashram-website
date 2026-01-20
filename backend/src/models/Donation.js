@@ -1,23 +1,36 @@
 const mongoose = require("mongoose");
 
+/**
+ * Donation Schema
+ * Stores complete donor snapshot at time of donation
+ * This ensures donation records are self-contained and immutable
+ */
 const donationSchema = new mongoose.Schema(
   {
+    // Optional reference to registered user
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    donorDob: {
-      type: Date,
-      required: true,
+
+    // === DONOR SNAPSHOT (captured at donation time) ===
+    donor: {
+      name: { type: String, required: true },
+      mobile: { type: String, required: true },
+      email: { type: String },
+      emailOptIn: { type: Boolean, default: false },
+      address: { type: String, required: true },
+      anonymousDisplay: { type: Boolean, default: false },
+      dob: { type: Date, required: true },
+      idType: { type: String, enum: ["PAN", "AADHAAR"], required: true },
+      idNumber: { type: String, required: true }, // Stored as-is, masked only in receipts/display
     },
-    donorIdType: {
-      type: String,
-      enum: ["PAN", "AADHAAR"],
-      required: true,
+
+    // === DONATION DETAILS ===
+    donationHead: {
+      id: { type: String, required: true },
+      name: { type: String, required: true },
     },
-    donorIdNumber: {
-      type: String,
-      required: true,
-    },
-    donationHead: { type: String, required: true },
     amount: { type: Number, required: true },
+
+    // === PAYMENT INFO ===
     razorpayOrderId: String,
     paymentId: String,
     status: {
@@ -26,10 +39,20 @@ const donationSchema = new mongoose.Schema(
       default: "PENDING",
     },
     transactionRef: String,
+
+    // === RECEIPT ===
     receiptUrl: String,
     receiptNumber: String,
+
+    // === OTP VERIFICATION ===
+    otpVerified: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
+
+// Index for user donations lookup
+donationSchema.index({ user: 1, createdAt: -1 });
+donationSchema.index({ "donor.mobile": 1 });
+donationSchema.index({ status: 1 });
 
 module.exports = mongoose.model("Donation", donationSchema);

@@ -58,14 +58,14 @@ exports.handleRazorpayWebhook = async (req, res) => {
 
       await donation.save();
 
-      const user = await User.findById(donation.user);
-
-      const receiptPath = await generateDonationReceipt(donation, user);
+      // Generate receipt using donor snapshot (not user)
+      const receiptPath = await generateDonationReceipt(donation);
       donation.receiptUrl = receiptPath;
 
       await donation.save();
 
-      const recipientEmail = user?.email || process.env.CONTACT_RECEIVER_EMAIL;
+      // Send email to donor if available
+      const recipientEmail = donation.donor?.email || process.env.CONTACT_RECEIVER_EMAIL;
 
       try {
         await sendDonationReceiptEmail(recipientEmail, receiptPath);
