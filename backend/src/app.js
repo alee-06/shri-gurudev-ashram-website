@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const path = require("path");
 const connectDB = require("./config/db");
 
 const app = express();
@@ -11,6 +12,9 @@ app.use(cors());
 app.use(cookieParser());
 app.use("/api/webhooks/razorpay", express.raw({ type: "application/json" }));
 app.use(express.json());
+
+// Serve receipts as static files
+app.use("/receipts", express.static(path.join(__dirname, "../receipts")));
 
 app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/test", require("./routes/test.routes"));

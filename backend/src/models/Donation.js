@@ -16,6 +16,7 @@ const donationSchema = new mongoose.Schema(
       mobile: { type: String, required: true },
       email: { type: String },
       emailOptIn: { type: Boolean, default: false },
+      emailVerified: { type: Boolean, default: false },
       address: { type: String, required: true },
       anonymousDisplay: { type: Boolean, default: false },
       dob: { type: Date, required: true },
@@ -39,15 +40,17 @@ const donationSchema = new mongoose.Schema(
       default: "PENDING",
     },
     transactionRef: String,
+    failureReason: String, // Stores reason if payment.failed
 
     // === RECEIPT ===
     receiptUrl: String,
     receiptNumber: String,
+    emailSent: { type: Boolean, default: false },
 
     // === OTP VERIFICATION ===
     otpVerified: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Index for user donations lookup

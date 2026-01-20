@@ -4,7 +4,6 @@ const optionalAuthMiddleware = require("../middlewares/optionalAuth.middleware")
 const {
   createDonation,
   createDonationOrder,
-  verifyPayment,
   getDonationStatus,
   downloadReceipt,
   sendDonationOtp,
@@ -20,8 +19,9 @@ router.post("/verify-otp", verifyDonationOtp);
 router.post("/create", optionalAuthMiddleware, createDonation);
 router.post("/create-order", optionalAuthMiddleware, createDonationOrder);
 
-// Payment verification (called by frontend after Razorpay checkout success)
-router.post("/verify-payment", optionalAuthMiddleware, verifyPayment);
+// NOTE: verify-payment route REMOVED
+// Payment confirmation is handled ONLY by Razorpay webhook
+// Frontend should poll /:id/status after payment completion
 
 // Public endpoints - no auth required (donationId acts as access token)
 router.get("/:id/status", getDonationStatus);
