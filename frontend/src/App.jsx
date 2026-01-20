@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { GalleryProvider } from "./context/GalleryContext";
 import { EventsProvider } from "./context/EventsContext";
@@ -7,6 +8,8 @@ import { AnnouncementProvider } from "./context/AnnouncementContext";
 import { DonationsProvider } from "./context/DonationsContext";
 import MainLayout from "./layouts/MainLayout";
 import ScrollToTop from "./components/ScrollToTop";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 
 // Pages
 import Home from "./pages/Home";
@@ -20,7 +23,6 @@ import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ActivityDetail from "./pages/ActivityDetail";
-import AdminLogin from "./pages/admin/AdminLogin";
 
 // Admin Pages
 import AdminLayout from "./layouts/AdminLayout";
@@ -55,12 +57,13 @@ function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <CartProvider>
-        <GalleryProvider>
-          <EventsProvider>
-            <ActivitiesProvider>
-              <AnnouncementProvider>
-                <DonationsProvider>
+      <AuthProvider>
+        <CartProvider>
+          <GalleryProvider>
+            <EventsProvider>
+              <ActivitiesProvider>
+                <AnnouncementProvider>
+                  <DonationsProvider>
                   <Routes>
                     <Route path="/" element={<MainLayout />}>
                       {/* Main Pages */}
@@ -77,12 +80,18 @@ function App() {
                       <Route path="testimonials" element={<Testimonials />} />
                       <Route path="contact" element={<Contact />} />
                       <Route path="login" element={<Login />} />
-                      <Route path="login/admin" element={<AdminLogin />} />
                       <Route path="signup" element={<Signup />} />
 
                       {/* Donation Module */}
                       <Route path="donate" element={<DonationPage />} />
-                      <Route path="my-donations" element={<MyDonations />} />
+                      <Route
+                        path="my-donations"
+                        element={
+                          <ProtectedRoute>
+                            <MyDonations />
+                          </ProtectedRoute>
+                        }
+                      />
 
                       {/* E-commerce Module */}
                       <Route path="shop" element={<ShopPage />} />
@@ -103,8 +112,15 @@ function App() {
                       />
                     </Route>
 
-                    {/* Admin Routes */}
-                    <Route path="/admin" element={<AdminLayout />}>
+                    {/* Admin Routes - Protected */}
+                    <Route
+                      path="/admin"
+                      element={
+                        <AdminRoute>
+                          <AdminLayout />
+                        </AdminRoute>
+                      }
+                    >
                       <Route index element={<AdminHome />} />
                       <Route path="website" element={<WebsiteAdminLayout />}>
                         <Route index element={<GalleryManager />} />
@@ -119,7 +135,14 @@ function App() {
                           element={<AnnouncementBannerManager />}
                         />
                       </Route>
-                      <Route path="system" element={<SystemAdminLayout />}>
+                      <Route
+                        path="system"
+                        element={
+                          <AdminRoute requiredRole="SYSTEM_ADMIN">
+                            <SystemAdminLayout />
+                          </AdminRoute>
+                        }
+                      >
                         <Route index element={<SystemOverview />} />
                         <Route path="overview" element={<SystemOverview />} />
                         <Route path="donations" element={<DonationsView />} />
@@ -135,6 +158,7 @@ function App() {
           </EventsProvider>
         </GalleryProvider>
       </CartProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

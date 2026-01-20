@@ -1,6 +1,9 @@
-import SectionHeading from "../components/SectionHeading";
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import SectionHeading from "../components/SectionHeading";
+import { useAuth } from "../context/AuthContext";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const COUNTRY_OPTIONS = [
   { value: "IN", label: "India", dialCode: "+91", length: 10 },
@@ -9,36 +12,37 @@ const COUNTRY_OPTIONS = [
   { value: "GB", label: "United Kingdom", dialCode: "+44", length: 10 },
   { value: "AU", label: "Australia", dialCode: "+61", length: 9 },
   { value: "JP", label: "Japan", dialCode: "+81", length: 10 },
-  { value: "AF", label: "Afghanistan", dialCode: "+93", length: 9 },
-  { value: "AL", label: "Albania", dialCode: "+355", length: 9 },
-  { value: "DZ", label: "Algeria", dialCode: "+213", length: 9 },
   { value: "AE", label: "United Arab Emirates", dialCode: "+971", length: 9 },
-  { value: "AR", label: "Argentina", dialCode: "+54", length: 10 },
-  { value: "AT", label: "Austria", dialCode: "+43", length: 10 },
-  { value: "BR", label: "Brazil", dialCode: "+55", length: 11 },
-  { value: "CN", label: "China", dialCode: "+86", length: 11 },
   { value: "DE", label: "Germany", dialCode: "+49", length: 11 },
   { value: "FR", label: "France", dialCode: "+33", length: 9 },
-  { value: "IT", label: "Italy", dialCode: "+39", length: 10 },
-  { value: "MX", label: "Mexico", dialCode: "+52", length: 10 },
-  { value: "NL", label: "Netherlands", dialCode: "+31", length: 9 },
-  { value: "RU", label: "Russia", dialCode: "+7", length: 10 },
   { value: "SG", label: "Singapore", dialCode: "+65", length: 8 },
-  { value: "ZA", label: "South Africa", dialCode: "+27", length: 9 },
-  { value: "KR", label: "South Korea", dialCode: "+82", length: 10 },
-  { value: "ES", label: "Spain", dialCode: "+34", length: 9 },
-  { value: "CH", label: "Switzerland", dialCode: "+41", length: 9 },
 ];
 
 const Login = () => {
-  const [loginMethod, setLoginMethod] = useState("phone"); // "phone" or "email"
-  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, getRedirectPath } = useAuth();
+
+  // Form state
+  const [step, setStep] = useState(1); // 1: Enter Phone, 2: Enter OTP
   const [country, setCountry] = useState(COUNTRY_OPTIONS[0]);
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+
+  // UI state
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Get return URL if user was redirected here
+  const returnUrl = location.state?.from || null;
+
+  const fullMobile = `${country.dialCode}${phone}`;
 
   const handleCountryChange = (event) => {
-    const selected = COUNTRY_OPTIONS.find((opt) => opt.value === event.target.value);
+    const selected = COUNTRY_OPTIONS.find(
+      (opt) => opt.value === event.target.value
+    );
     if (selected) {
       setCountry(selected);
       setPhone("");
@@ -48,53 +52,145 @@ const Login = () => {
   const handlePhoneChange = (event) => {
     const digitsOnly = event.target.value.replace(/\D/g, "");
     setPhone(digitsOnly.slice(0, country.length));
+    setError("");
   };
 
-  const handleEmailChange = (event) => {
-    setEmail(event.target.value);
+  const handleOtpChange = (event) => {
+    const digitsOnly = event.target.value.replace(/\D/g, "");
+    setOtp(digitsOnly.slice(0, 6));
+    setError("");
+  };
+
+  /**
+   * Step 1: Send OTP to phone number
+   */
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+
+    if (phone.length !== country.length) {
+      setError(`Please enter a valid ${country.length}-digit phone number`);
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile: fullMobile }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to send OTP");
+      }
+
+      setSuccessMessage("OTP sent successfully! Check your phone.");
+      setStep(2);
+    } catch (err) {
+      setError(err.message || "Failed to send OTP. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Step 2: Verify OTP and login
+   */
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+
+    if (otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile: fullMobile, otp }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Invalid OTP");
+      }
+
+      // Login with token
+      const user = await login(data.token);
+
+      if (user) {
+        // Redirect based on role or return URL
+        const redirectPath = returnUrl || getRedirectPath(user.role);
+        navigate(redirectPath, { replace: true });
+      } else {
+        throw new Error("Login failed. Please try again.");
+      }
+    } catch (err) {
+      setError(err.message || "Verification failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Go back to phone entry step
+   */
+  const handleBack = () => {
+    setStep(1);
+    setOtp("");
+    setError("");
+    setSuccessMessage("");
+  };
+
+  /**
+   * Resend OTP
+   */
+  const handleResendOtp = async () => {
+    setOtp("");
+    setError("");
+    await handleSendOtp({ preventDefault: () => {} });
   };
 
   return (
-    <section className="py-16 px-4 bg-white">
+    <section className="py-16 px-4 bg-white min-h-[60vh]">
       <div className="max-w-md mx-auto bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6">
         <SectionHeading
           title="Login"
-          subtitle="Sign in to your account"
+          subtitle={
+            step === 1
+              ? "Enter your phone number to continue"
+              : "Enter the OTP sent to your phone"
+          }
           center={true}
         />
 
-        {/* Login Method Toggle */}
-        <div className="mt-6 mb-4">
-          <div className="flex bg-white rounded-lg p-1 border border-amber-200">
-            <button
-              type="button"
-              onClick={() => setLoginMethod("phone")}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                loginMethod === "phone"
-                  ? "bg-amber-600 text-white"
-                  : "text-gray-700 hover:text-amber-600"
-              }`}
-            >
-              Phone Number
-            </button>
-            <button
-              type="button"
-              onClick={() => setLoginMethod("email")}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                loginMethod === "email"
-                  ? "bg-amber-600 text-white"
-                  : "text-gray-700 hover:text-amber-600"
-              }`}
-            >
-              Email ID
-            </button>
+        {/* Error Message */}
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+            {error}
           </div>
-        </div>
+        )}
+
+        {/* Success Message */}
+        {successMessage && step === 2 && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+            {successMessage}
+          </div>
+        )}
 
         <div className="mt-6 space-y-4">
-          <div className="space-y-3">
-            {/* Phone Login Mode */}
-            {loginMethod === "phone" && (
+          {/* Step 1: Phone Number Entry */}
+          {step === 1 && (
+            <form onSubmit={handleSendOtp} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-800 mb-2">
                   Phone Number
@@ -103,12 +199,13 @@ const Login = () => {
                   <select
                     value={country.value}
                     onChange={handleCountryChange}
-                    className="w-32 px-2 py-2 border border-amber-200 rounded-md bg-white text-sm text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 appearance-none cursor-pointer"
+                    disabled={isLoading}
+                    className="w-36 px-2 py-2 border border-amber-200 rounded-md bg-white text-sm text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 appearance-none cursor-pointer disabled:opacity-50"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23666' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")`,
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'right 8px center',
-                      paddingRight: '26px',
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "right 8px center",
+                      paddingRight: "26px",
                     }}
                   >
                     {COUNTRY_OPTIONS.map((opt) => (
@@ -121,74 +218,135 @@ const Login = () => {
                     type="tel"
                     value={phone}
                     onChange={handlePhoneChange}
-                    placeholder={`${country.length}-digit`}
-                    className="w-full px-3 py-2 border border-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    placeholder={`${country.length}-digit number`}
+                    disabled={isLoading}
+                    className="flex-1 px-3 py-2 border border-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+                    autoFocus
                   />
                 </div>
               </div>
-            )}
 
-            {/* Email Login Mode */}
-            {loginMethod === "email" && (
+              <button
+                type="submit"
+                disabled={isLoading || phone.length !== country.length}
+                className="w-full py-3 bg-amber-600 text-white font-semibold rounded-md hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Sending OTP...
+                  </>
+                ) : (
+                  "Send OTP"
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* Step 2: OTP Verification */}
+          {step === 2 && (
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-2">
-                  Email ID
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-semibold text-gray-800">
+                    Enter OTP
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="text-sm text-amber-600 hover:text-amber-700"
+                  >
+                    Change Number
+                  </button>
+                </div>
+                <p className="text-xs text-gray-600 mb-2">
+                  Sent to {fullMobile}
+                </p>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={handleEmailChange}
-                  placeholder="Enter your email"
-                  className="w-full px-3 py-2 border border-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  type="text"
+                  inputMode="numeric"
+                  value={otp}
+                  onChange={handleOtpChange}
+                  placeholder="Enter 6-digit OTP"
+                  disabled={isLoading}
+                  className="w-full px-3 py-3 border border-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 text-center text-xl tracking-widest font-mono disabled:opacity-50"
+                  maxLength={6}
+                  autoFocus
                 />
               </div>
-            )}
 
-            {/* Password Field (Common for both modes) */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 border border-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10"
-                />
+              <button
+                type="submit"
+                disabled={isLoading || otp.length !== 6}
+                className="w-full py-3 bg-amber-600 text-white font-semibold rounded-md hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify & Login"
+                )}
+              </button>
+
+              <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={handleResendOtp}
+                  disabled={isLoading}
+                  className="text-sm text-amber-600 hover:text-amber-700 disabled:opacity-50"
                 >
-                  {showPassword ? (
-                    <EyeOff size={20} />
-                  ) : (
-                    <Eye size={20} />
-                  )}
+                  Didn't receive OTP? Resend
                 </button>
               </div>
-            </div>
-          </div>
+            </form>
+          )}
 
-          <button
-            type="button"
-            className="w-full py-3 bg-amber-600 text-white font-semibold rounded-md hover:bg-amber-700 transition-colors"
-          >
-            Login
-          </button>
-
-          {/* Common Links */}
-          <div className="space-y-2 text-center">
-            <a
-              href="#"
-              className="block text-sm text-amber-600 hover:text-amber-700"
-            >
-              Forgot Password?
-            </a>
+          {/* Footer Links */}
+          <div className="pt-4 border-t border-amber-200 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
-              <a href="/signup" className="text-amber-600 hover:text-amber-700 font-medium">
+              <a
+                href="/signup"
+                className="text-amber-600 hover:text-amber-700 font-medium"
+              >
                 Sign up
               </a>
             </p>

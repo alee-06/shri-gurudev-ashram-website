@@ -1,15 +1,21 @@
 const router = require("express").Router();
 const authMiddleware = require("../middlewares/auth.middleware");
+const optionalAuthMiddleware = require("../middlewares/optionalAuth.middleware");
 const {
   createDonation,
   createDonationOrder,
+  verifyPayment,
   getDonationStatus,
   downloadReceipt,
 } = require("../controllers/donation.controller");
 
-// Guest-friendly donation creation (auth optional handled in controller)
-router.post("/create", createDonation);
-router.post("/create-order", createDonationOrder);
+// Donation creation - uses optional auth (works for both guests and logged-in users)
+// If user is logged in, donation will be linked to their account
+router.post("/create", optionalAuthMiddleware, createDonation);
+router.post("/create-order", optionalAuthMiddleware, createDonationOrder);
+
+// Payment verification (called by frontend after Razorpay checkout success)
+router.post("/verify-payment", optionalAuthMiddleware, verifyPayment);
 
 // Public endpoints - no auth required (donationId acts as access token)
 router.get("/:id/status", getDonationStatus);

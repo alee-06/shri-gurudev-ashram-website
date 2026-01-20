@@ -3,6 +3,10 @@ const razorpay = require("../config/razorpay");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
+const User = require("../models/User");
+const { generateDonationReceipt } = require("../services/receipt.service");
+const { sendDonationReceiptEmail } = require("../services/email.service");
 
 exports.createDonation = async (req, res) => {
   try {
@@ -101,6 +105,91 @@ exports.createDonationOrder = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Failed to create Razorpay order" });
+  }
+};
+
+/**
+ * Verify Razorpay payment after frontend payment completion
+ * This is called by frontend after successful Razorpay checkout
+ * Verifies signature and updates donation status
+ */
+exports.verifyPayment = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, donationId } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !donationId) {
+      return res.status(400).json({ message: "Missing payment verification data" });
+    }
+
+    // Verify signature
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ message: "Invalid payment signature" });
+    }
+
+    // Find and update donation
+    const donation = await Donation.findById(donationId);
+
+    if (!donation) {
+      return res.status(404).json({ message: "Donation not found" });
+    }
+
+    // Already processed
+    if (donation.status === "SUCCESS") {
+      return res.json({ 
+        success: true, 
+        message: "Payment already verified",
+        status: donation.status 
+      });
+    }
+
+    // Update donation status
+    donation.status = "SUCCESS";
+    donation.paymentId = razorpay_payment_id;
+    donation.transactionRef = razorpay_payment_id;
+    donation.receiptNumber = `GRD-${new Date().getFullYear()}-${donation._id
+      .toString()
+      .slice(-6)
+      .toUpperCase()}`;
+
+    await donation.save();
+
+    // Generate receipt
+    const user = donation.user ? await User.findById(donation.user) : null;
+    
+    try {
+      const receiptPath = await generateDonationReceipt(donation, user);
+      donation.receiptUrl = receiptPath;
+      await donation.save();
+
+      // Send email if user has email
+      const recipientEmail = user?.email;
+      if (recipientEmail) {
+        try {
+          await sendDonationReceiptEmail(recipientEmail, receiptPath);
+        } catch (emailErr) {
+          console.error("Receipt email failed:", emailErr.message);
+        }
+      }
+    } catch (receiptErr) {
+      console.error("Receipt generation failed:", receiptErr.message);
+    }
+
+    res.json({ 
+      success: true, 
+      message: "Payment verified successfully",
+      status: donation.status,
+      receiptNumber: donation.receiptNumber
+    });
+
+  } catch (error) {
+    console.error("Payment verification error:", error);
+    res.status(500).json({ message: "Payment verification failed" });
   }
 };
 

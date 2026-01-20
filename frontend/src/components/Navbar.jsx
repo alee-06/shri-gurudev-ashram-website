@@ -2,16 +2,34 @@ import { useState, useEffect, useRef } from "react";
 import AnnouncementBanner from "./AnnouncementBanner";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 
 const Navbar = ({ showAnnouncement = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const navRef = useRef(null);
+  const profileRef = useRef(null);
   const location = useLocation();
   const { getCartItemCount } = useCart();
+  const { user, isAuthenticated, logout } = useAuth();
+
+  const isAdmin = user?.role === "WEBSITE_ADMIN" || user?.role === "SYSTEM_ADMIN";
 
   const isActive = (path) => location.pathname === path;
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -179,23 +197,133 @@ const Navbar = ({ showAnnouncement = false }) => {
                   </span>
                 )}
               </Link>
-              <Link
-                to="/login"
-                className="px-4 py-2 border-2 border-amber-400 rounded-md text-amber-600 text-sm font-semibold hover:bg-amber-400 hover:text-white transition-all duration-300 flex items-center space-x-2 shadow-sm"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+
+              {/* Auth Button / Profile Dropdown */}
+              {isAuthenticated ? (
+                <div className="relative" ref={profileRef}>
+                  <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="px-4 py-2 border-2 border-amber-400 rounded-md text-amber-600 text-sm font-semibold hover:bg-amber-400 hover:text-white transition-all duration-300 flex items-center space-x-2 shadow-sm"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>{user?.fullName || "My Account"}</span>
+                    <svg
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        isProfileOpen ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+
+                  {/* Profile Dropdown */}
+                  {isProfileOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white border border-amber-200 rounded-lg shadow-lg py-2 z-50 animate-fadeIn">
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setIsProfileOpen(false)}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                        >
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                            />
+                          </svg>
+                          Dashboard
+                        </Link>
+                      )}
+                      <Link
+                        to="/my-donations"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                      >
+                        <svg
+                          className="w-4 h-4 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        My Donations
+                      </Link>
+                      <hr className="my-2 border-amber-100" />
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          logout();
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <svg
+                          className="w-4 h-4 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                          />
+                        </svg>
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="px-4 py-2 border-2 border-amber-400 rounded-md text-amber-600 text-sm font-semibold hover:bg-amber-400 hover:text-white transition-all duration-300 flex items-center space-x-2 shadow-sm"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span>Login</span>
-              </Link>
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>Login</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -245,12 +373,32 @@ const Navbar = ({ showAnnouncement = false }) => {
                     </span>
                   )}
                 </Link>
-                <Link
-                  to="/login"
-                  className="px-3 py-1.5 border-2 border-amber-400 rounded-md text-amber-700 text-sm font-semibold hover:bg-amber-100 shadow-sm"
-                >
-                  Login
-                </Link>
+                {isAuthenticated ? (
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="px-3 py-1.5 border-2 border-amber-400 rounded-md text-amber-700 text-sm font-semibold hover:bg-amber-100 shadow-sm flex items-center space-x-1"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>{user?.fullName?.split(" ")[0] || "Account"}</span>
+                  </button>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="px-3 py-1.5 border-2 border-amber-400 rounded-md text-amber-700 text-sm font-semibold hover:bg-amber-100 shadow-sm"
+                  >
+                    Login
+                  </Link>
+                )}
               </div>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -372,13 +520,92 @@ const Navbar = ({ showAnnouncement = false }) => {
               >
                 Cart {getCartItemCount() > 0 && `(${getCartItemCount()})`}
               </Link>
-              <Link
-                to="/login"
-                onClick={() => setIsMenuOpen(false)}
-                className="block px-4 py-3.5 border border-amber-300 text-amber-700 rounded-md text-center font-semibold hover:bg-amber-100 transition-colors"
-              >
-                Login
-              </Link>
+
+              {/* Auth Section for Mobile */}
+              {isAuthenticated ? (
+                <>
+                  <div className="pt-2 border-t border-amber-200">
+                    <p className="px-4 py-2 text-sm text-gray-500">
+                      Signed in as{" "}
+                      <span className="font-semibold text-amber-700">
+                        {user?.fullName || user?.mobile}
+                      </span>
+                    </p>
+                  </div>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center px-4 py-3.5 bg-amber-600 text-white rounded-md font-semibold hover:bg-amber-700 transition-colors"
+                    >
+                      <svg
+                        className="w-5 h-5 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                        />
+                      </svg>
+                      Dashboard
+                    </Link>
+                  )}
+                  <Link
+                    to="/my-donations"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center px-4 py-3.5 border border-amber-300 text-amber-700 rounded-md font-semibold hover:bg-amber-100 transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    My Donations
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      logout();
+                    }}
+                    className="flex items-center justify-center w-full px-4 py-3.5 bg-red-500 text-white rounded-md font-semibold hover:bg-red-600 transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block px-4 py-3.5 border border-amber-300 text-amber-700 rounded-md text-center font-semibold hover:bg-amber-100 transition-colors"
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         </div>

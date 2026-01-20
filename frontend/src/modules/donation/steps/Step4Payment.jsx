@@ -200,15 +200,23 @@ const Step4Payment = ({ data, updateData, nextStep, prevStep }) => {
       setPaymentStage("checkout");
       const paymentResult = await openRazorpayCheckout(orderData);
 
-      // Payment callback received - update state and proceed
-      // NOTE: We're NOT marking as success - webhook handles that
+      // Stage 4: Verify payment with backend
+      setPaymentStage("verifying");
+      const verifyResponse = await apiRequest("/donations/verify-payment", {
+        razorpay_order_id: paymentResult.razorpayOrderId,
+        razorpay_payment_id: paymentResult.razorpayPaymentId,
+        razorpay_signature: paymentResult.razorpaySignature,
+        donationId: donationId,
+      });
+
+      // Payment verified - update state and proceed
       updateData({
         razorpayPaymentId: paymentResult.razorpayPaymentId,
         transactionId: paymentResult.razorpayPaymentId, // For backward compatibility with Step5Success
+        receiptNumber: verifyResponse.receiptNumber,
       });
 
       // Navigate to success page
-      // The actual success/failure will be determined by webhook
       nextStep();
     } catch (err) {
       setError(err.message);
@@ -229,6 +237,8 @@ const Step4Payment = ({ data, updateData, nextStep, prevStep }) => {
         return "Preparing payment...";
       case "checkout":
         return "Opening payment gateway...";
+      case "verifying":
+        return "Verifying payment...";
       default:
         return "Processing...";
     }

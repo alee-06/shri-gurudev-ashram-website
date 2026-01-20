@@ -68,3 +68,22 @@ exports.verifyOtp = async (req, res) => {
 
   res.json({ token });
 };
+
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-__v");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({
+      id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      mobile: user.mobile,
+      role: user.role,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
