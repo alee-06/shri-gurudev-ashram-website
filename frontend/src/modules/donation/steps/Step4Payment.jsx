@@ -65,6 +65,7 @@ const Step4Payment = ({ data, updateData, nextStep, prevStep }) => {
       mobile: data.mobile,
       email: data.email || undefined,
       emailOptIn: data.emailOptIn || false,
+      emailVerified: data.emailVerified || false,
       address: data.address,
       anonymousDisplay: data.anonymousDisplay || false,
       dob: data.dateOfBirth, // YYYY-MM-DD format
@@ -74,7 +75,10 @@ const Step4Payment = ({ data, updateData, nextStep, prevStep }) => {
 
     // Build donationHead object (not just ID)
     const donationHead = {
-      id: data.donationHead?.id || data.donationHead?.name || String(data.donationHead),
+      id:
+        data.donationHead?.id ||
+        data.donationHead?.name ||
+        String(data.donationHead),
       name: data.donationHead?.name || String(data.donationHead),
     };
 
@@ -210,23 +214,18 @@ const Step4Payment = ({ data, updateData, nextStep, prevStep }) => {
       setPaymentStage("checkout");
       const paymentResult = await openRazorpayCheckout(orderData);
 
-      // Stage 4: Verify payment with backend
-      setPaymentStage("verifying");
-      const verifyResponse = await apiRequest("/donations/verify-payment", {
-        razorpay_order_id: paymentResult.razorpayOrderId,
-        razorpay_payment_id: paymentResult.razorpayPaymentId,
-        razorpay_signature: paymentResult.razorpaySignature,
-        donationId: donationId,
-      });
+      // IMPORTANT: Do NOT verify payment here!
+      // Webhook is the ONLY authority to mark payment as SUCCESS/FAILED
+      // Frontend just stores the payment ID and navigates to Step5Success
+      // Step5Success will poll the donation status until webhook updates it
 
-      // Payment verified - update state and proceed
+      // Store payment details for reference (actual confirmation comes from webhook)
       updateData({
         razorpayPaymentId: paymentResult.razorpayPaymentId,
-        transactionId: paymentResult.razorpayPaymentId, // For backward compatibility with Step5Success
-        receiptNumber: verifyResponse.receiptNumber,
+        transactionId: paymentResult.razorpayPaymentId,
       });
 
-      // Navigate to success page
+      // Navigate to success page - it will poll for actual status
       nextStep();
     } catch (err) {
       setError(err.message);
@@ -247,8 +246,6 @@ const Step4Payment = ({ data, updateData, nextStep, prevStep }) => {
         return "Preparing payment...";
       case "checkout":
         return "Opening payment gateway...";
-      case "verifying":
-        return "Verifying payment...";
       default:
         return "Processing...";
     }

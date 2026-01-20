@@ -9,6 +9,19 @@ const Otp = require("../models/Otp");
 const bcrypt = require("bcrypt");
 const { generateDonationReceipt } = require("../services/receipt.service");
 const { sendDonationReceiptEmail } = require("../services/email.service");
+const maskId = require("../utils/maskId");
+
+/**
+ * Helper: Mask sensitive donor data for API responses
+ * Masks PAN/Aadhaar in donor object
+ */
+const maskDonorData = (donor) => {
+  if (!donor) return donor;
+  return {
+    ...donor,
+    idNumber: maskId(donor.idType, donor.idNumber),
+  };
+};
 
 /**
  * Helper: Validate government ID
@@ -101,12 +114,16 @@ exports.verifyDonationOtp = async (req, res) => {
     const record = await Otp.findOne({ mobile }).sort({ _id: -1 });
 
     if (!record) {
-      return res.status(400).json({ message: "OTP not found. Please request a new one." });
+      return res
+        .status(400)
+        .json({ message: "OTP not found. Please request a new one." });
     }
 
     if (record.expiresAt < new Date()) {
       await Otp.deleteMany({ mobile });
-      return res.status(400).json({ message: "OTP expired. Please request a new one." });
+      return res
+        .status(400)
+        .json({ message: "OTP expired. Please request a new one." });
     }
 
     const isValid = await bcrypt.compare(otp.toString(), record.otpHash);
@@ -118,9 +135,9 @@ exports.verifyDonationOtp = async (req, res) => {
     // Delete used OTP
     await Otp.deleteMany({ mobile });
 
-    res.json({ 
-      verified: true, 
-      message: "OTP verified successfully" 
+    res.json({
+      verified: true,
+      message: "OTP verified successfully",
     });
   } catch (error) {
     console.error("Verify OTP error:", error);
@@ -143,10 +160,23 @@ exports.createDonation = async (req, res) => {
     }
 
     // Validate donor object
-    const { name, mobile, email, emailOptIn, address, anonymousDisplay, dob, idType, idNumber } = donor;
+    const {
+      name,
+      mobile,
+      email,
+      emailOptIn,
+      emailVerified,
+      address,
+      anonymousDisplay,
+      dob,
+      idType,
+      idNumber,
+    } = donor;
 
     if (!name || !mobile || !address || !dob || !idType || !idNumber) {
-      return res.status(400).json({ message: "Missing required donor details" });
+      return res
+        .status(400)
+        .json({ message: "Missing required donor details" });
     }
 
     // Validate donationHead object
@@ -174,6 +204,7 @@ exports.createDonation = async (req, res) => {
         mobile,
         email: email || undefined,
         emailOptIn: emailOptIn || false,
+        emailVerified: emailVerified || false,
         address,
         anonymousDisplay: anonymousDisplay || false,
         dob: new Date(dob),
@@ -220,6 +251,10 @@ exports.createDonationOrder = async (req, res) => {
       receipt: donation._id.toString().slice(-12),
     };
 
+    console.log("Creating Razorpay order with options:", options);
+    console.log("Donation amount (rupees):", donation.amount);
+    console.log("Order amount (paise):", options.amount);
+
     const order = await razorpay.orders.create(options);
 
     donation.razorpayOrderId = order.id;
@@ -238,86 +273,18 @@ exports.createDonationOrder = async (req, res) => {
 };
 
 /**
- * Verify Razorpay payment after frontend payment completion
- * This is called by frontend after successful Razorpay checkout
- * Verifies signature and updates donation status
+ * ❌ REMOVED: verifyPayment
+ *
+ * Payment verification is now handled EXCLUSIVELY by Razorpay webhook.
+ * Frontend should NOT call any backend endpoint to confirm payment.
+ * After Razorpay checkout completes, frontend should:
+ *   1. Navigate to Step5Success page
+ *   2. Poll GET /donations/:id/status
+ *   3. Wait for webhook to update status to SUCCESS or FAILED
+ *
+ * If webhook is down, donation MUST remain PENDING forever.
+ * This is by design - we NEVER trust frontend payment callbacks.
  */
-exports.verifyPayment = async (req, res) => {
-  try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, donationId } = req.body;
-
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !donationId) {
-      return res.status(400).json({ message: "Missing payment verification data" });
-    }
-
-    // Verify signature
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
-      .digest("hex");
-
-    if (expectedSignature !== razorpay_signature) {
-      return res.status(400).json({ message: "Invalid payment signature" });
-    }
-
-    // Find and update donation
-    const donation = await Donation.findById(donationId);
-
-    if (!donation) {
-      return res.status(404).json({ message: "Donation not found" });
-    }
-
-    // Already processed
-    if (donation.status === "SUCCESS") {
-      return res.json({ 
-        success: true, 
-        message: "Payment already verified",
-        status: donation.status 
-      });
-    }
-
-    // Update donation status
-    donation.status = "SUCCESS";
-    donation.paymentId = razorpay_payment_id;
-    donation.transactionRef = razorpay_payment_id;
-    donation.receiptNumber = `GRD-${new Date().getFullYear()}-${donation._id
-      .toString()
-      .slice(-6)
-      .toUpperCase()}`;
-
-    await donation.save();
-
-    // Generate receipt using donor snapshot (not user)
-    try {
-      const receiptPath = await generateDonationReceipt(donation);
-      donation.receiptUrl = receiptPath;
-      await donation.save();
-
-      // Send email if donor has email
-      if (donation.donor.email) {
-        try {
-          await sendDonationReceiptEmail(donation.donor.email, receiptPath);
-        } catch (emailErr) {
-          console.error("Receipt email failed:", emailErr.message);
-        }
-      }
-    } catch (receiptErr) {
-      console.error("Receipt generation failed:", receiptErr.message);
-    }
-
-    res.json({ 
-      success: true, 
-      message: "Payment verified successfully",
-      status: donation.status,
-      receiptNumber: donation.receiptNumber
-    });
-
-  } catch (error) {
-    console.error("Payment verification error:", error);
-    res.status(500).json({ message: "Payment verification failed" });
-  }
-};
 
 /**
  * Get user's donations (JWT protected)
@@ -326,20 +293,26 @@ exports.verifyPayment = async (req, res) => {
 exports.getUserDonations = async (req, res) => {
   try {
     const donations = await Donation.find({ user: req.user.id })
-      .select("_id donationHead donor.name donor.anonymousDisplay amount status createdAt receiptUrl receiptNumber")
+      .select(
+        "_id donationHead donor amount status createdAt receiptUrl receiptNumber",
+      )
       .sort({ createdAt: -1 });
 
-    // Format response with display name handling
-    const formattedDonations = donations.map(d => ({
-      _id: d._id,
-      donationHead: d.donationHead,
-      donorName: d.donor.anonymousDisplay ? "Anonymous" : d.donor.name,
-      amount: d.amount,
-      status: d.status,
-      createdAt: d.createdAt,
-      receiptUrl: d.receiptUrl,
-      receiptNumber: d.receiptNumber,
-    }));
+    // Format response with display name handling and masked donor data
+    const formattedDonations = donations.map((d) => {
+      const donorObj = d.donor.toObject ? d.donor.toObject() : d.donor;
+      return {
+        _id: d._id,
+        donationHead: d.donationHead,
+        donorName: donorObj.anonymousDisplay ? "Anonymous" : donorObj.name,
+        donor: maskDonorData(donorObj),
+        amount: d.amount,
+        status: d.status,
+        createdAt: d.createdAt,
+        receiptUrl: d.receiptUrl,
+        receiptNumber: d.receiptNumber,
+      };
+    });
 
     res.json(formattedDonations);
   } catch (err) {
@@ -363,13 +336,15 @@ exports.getDonationStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid donation ID" });
     }
 
-    const donation = await Donation.findById(id).select("status donationHead amount receiptNumber");
+    const donation = await Donation.findById(id).select(
+      "status donationHead amount receiptNumber",
+    );
 
     if (!donation) {
       return res.status(404).json({ status: "NOT_FOUND" });
     }
 
-    res.json({ 
+    res.json({
       status: donation.status,
       donationHead: donation.donationHead,
       amount: donation.amount,
@@ -418,7 +393,7 @@ exports.downloadReceipt = async (req, res) => {
     const receiptPath = path.join(
       __dirname,
       "../../receipts",
-      path.basename(donation.receiptUrl)
+      path.basename(donation.receiptUrl),
     );
 
     if (!fs.existsSync(receiptPath)) {

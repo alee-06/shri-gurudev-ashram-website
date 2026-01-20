@@ -1,7 +1,10 @@
 const crypto = require("crypto");
+const fs = require("fs");
 const Donation = require("../models/Donation");
-const User = require("../models/User");
-const { generateDonationReceipt } = require("../services/receipt.service");
+const {
+  generateDonationReceipt,
+  getReceiptPublicUrl,
+} = require("../services/receipt.service");
 const { sendDonationReceiptEmail } = require("../services/email.service");
 
 exports.handleRazorpayWebhook = async (req, res) => {
@@ -58,19 +61,56 @@ exports.handleRazorpayWebhook = async (req, res) => {
 
       await donation.save();
 
-      // Generate receipt using donor snapshot (not user)
-      const receiptPath = await generateDonationReceipt(donation);
-      donation.receiptUrl = receiptPath;
-
-      await donation.save();
-
-      // Send email to donor if available
-      const recipientEmail = donation.donor?.email || process.env.CONTACT_RECEIVER_EMAIL;
-
+      // Generate receipt PDF (returns full filesystem path)
+      let receiptPath = null;
       try {
-        await sendDonationReceiptEmail(recipientEmail, receiptPath);
-      } catch (emailErr) {
-        console.error("Receipt email failed:", emailErr.message);
+        receiptPath = await generateDonationReceipt(donation);
+
+        // Verify the file was actually created before storing
+        if (receiptPath && fs.existsSync(receiptPath)) {
+          donation.receiptUrl = receiptPath;
+          await donation.save();
+          console.log("Receipt generated successfully:", receiptPath);
+        } else {
+          console.error(
+            "Receipt generation failed: File not found after generation",
+          );
+        }
+      } catch (receiptErr) {
+        console.error("Receipt generation error:", receiptErr.message);
+      }
+
+      // Send email ONLY if:
+      // 1. Receipt was successfully generated
+      // 2. Donor opted in for email AND has verified email
+      if (receiptPath && fs.existsSync(receiptPath)) {
+        console.log("Email check - emailOptIn:", donation.donor?.emailOptIn);
+        console.log(
+          "Email check - emailVerified:",
+          donation.donor?.emailVerified,
+        );
+        console.log("Email check - email:", donation.donor?.email);
+
+        const shouldSendEmail =
+          donation.donor?.emailOptIn === true &&
+          donation.donor?.emailVerified === true &&
+          donation.donor?.email;
+
+        console.log("Should send email:", shouldSendEmail);
+
+        if (shouldSendEmail) {
+          const emailSent = await sendDonationReceiptEmail(
+            donation.donor.email,
+            receiptPath,
+          );
+
+          console.log("Email send result:", emailSent);
+
+          if (emailSent) {
+            donation.emailSent = true;
+            await donation.save();
+          }
+        }
       }
 
       return res.json({ status: "ok" });
@@ -97,6 +137,15 @@ exports.handleRazorpayWebhook = async (req, res) => {
 
       donation.status = "FAILED";
       donation.transactionRef = payment.id;
+
+      // Store failure reason from Razorpay error object
+      if (payment.error_description) {
+        donation.failureReason = payment.error_description;
+      } else if (payment.error_reason) {
+        donation.failureReason = payment.error_reason;
+      } else {
+        donation.failureReason = "Payment failed";
+      }
 
       await donation.save();
 
